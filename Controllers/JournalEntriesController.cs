@@ -5,76 +5,79 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using BemoRest.Models;
 using Microsoft.EntityFrameworkCore;
+using BemoRest.Models.Repositories;
 
 namespace BemoRest.Controllers
 {
     [Route("api/JournalOwners/{journalOwnerID}/Entries")]
     public class JournalEntriesController : Controller
     {
+        private IJournalEntryRepo m_repo;
+
+        public JournalEntriesController(IJournalEntryRepo repo)
+        {
+            m_repo = repo;
+        }
+
         // GET api/JournalOwners/1/Entries
         [HttpGet]
-        public async Task<IEnumerable<JournalEntry>> Get(int journalOwnerID)
+        public async Task<IActionResult> Get(int journalOwnerID)
         {
-            using(var context = new JournalContext()) {
-                return await context.JournalEntries.Where(
-                    e => e.JournalOwnerID == journalOwnerID
-                ).ToListAsync();
-            }            
+            var entries = await m_repo.GetAllAsync(journalOwnerID);
+
+            return new ObjectResult(entries);
         }
 
         // GET api/JournalOwner/1/Entries/2
         [HttpGet("{entryID}")]
-        public async Task<JournalEntry> Get(int journalOwnerID, int entryID)
+        public async Task<IActionResult> Get(int journalOwnerID, int entryID)
         {
-            using(var context = new JournalContext()) {
-                return await context.JournalEntries.SingleOrDefaultAsync(
-                    e => e.JournalOwnerID == journalOwnerID
-                        && e.JournalEntryID == entryID
-                );
-            }
+            var entry = await m_repo.GetAsync(journalOwnerID, entryID);
+
+            return new ObjectResult(entry);
         }
 
         // POST api/JournalOwners/1/Entries
         [HttpPost]
-        public async void Post(int journalOwnerID, [FromBody]JournalEntry value)
+        public async Task<IActionResult> Post(int journalOwnerID, [FromBody]JournalEntry value)
         {
+            // Early return if value is of no use
+            if(value == null)
+                return BadRequest();
+
             // Make sure the data in the URl is reflected in the new entry
             value.JournalOwnerID = journalOwnerID;
 
-            using(var context = new JournalContext()) {
-                context.JournalEntries.Add(value);
-                await context.SaveChangesAsync();
-            }
+            await m_repo.AddAsync(value);
+
+            // Returns a 201, with a route to the location where the POSTed item can be viewed
+            return CreatedAtRoute("Entities", new { id = value.JournalEntryID}, value);
         }
 
         // PUT api/JournalOwners/1/Entries/2
         [HttpPut("{entryID}")]
-        public async void Put(int journalOwnerID, int entryID, [FromBody]JournalEntry value)
+        public async Task<IActionResult> Put(int journalOwnerID, int entryID, [FromBody]JournalEntry value)
         {
+            // Early return if value is of no use
+            if(value == null)
+                return BadRequest();
+            
             // Make sure the data in the URl is reflected in the new entry
             value.JournalOwnerID = journalOwnerID;
             value.JournalEntryID = entryID;
 
-            using(var context = new JournalContext()) {
-                context.JournalEntries.Update(value);
-                await context.SaveChangesAsync();
-            }            
+            await m_repo.UpdateAsync(value);
+
+            return new NoContentResult();
         }
 
         // DELETE api/JournalOwners/1/Entries/2
         [HttpDelete("{entryID}")]
-        public async void Delete(int journalOwnerID, int entryID)
+        public async Task<IActionResult> Delete(int journalOwnerID, int entryID)
         {
-            using(var context = new JournalContext()) {
-                var entry = context.JournalEntries.SingleOrDefault(
-                    e => e.JournalOwnerID == journalOwnerID
-                        && e.JournalEntryID == entryID
-                );
-                if(entry != null) {
-                    context.JournalEntries.Remove(entry);
-                    await context.SaveChangesAsync();
-                }
-            }            
+            await m_repo.DeleteAsync(journalOwnerID, entryID);
+
+            return new NoContentResult();
         }
     }
 }

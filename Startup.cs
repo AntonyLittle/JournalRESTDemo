@@ -8,6 +8,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+using BemoRest.Models;
+using BemoRest.Models.Repositories;
+using Microsoft.EntityFrameworkCore;
+
 namespace BemoRest
 {
     public class Startup
@@ -29,6 +33,11 @@ namespace BemoRest
         {
             // Add framework services.
             services.AddMvc();
+            services.AddDbContext<JournalContext>(
+                        options => options.UseSqlite("Filename=./journals.sqlite")
+                    );
+            services.AddScoped<IJournalOwnerRepo, JournalOwnerRepo>();
+            services.AddScoped<IJournalEntryRepo, JournalEntryRepo>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
